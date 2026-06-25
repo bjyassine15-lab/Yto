@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.example.data.Contact
 import com.example.ui.AppScreen
@@ -161,7 +162,7 @@ fun MainGrandmaScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -201,6 +202,68 @@ fun MainGrandmaScreen(
                 }
             }
 
+            // Beautiful Grandma Mima Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF1E1E22))
+                    .border(1.dp, Color(0xFF2E2E34), RoundedCornerShape(24.dp))
+                    .clickable { viewModel.speakGreeting(context) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Beautiful Grandma Avatar
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color(0xFFFFB300), CircleShape)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_grandma_1782382807083),
+                        contentDescription = "Mima the Assistant",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "mima",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = "مِيما - مساعدتك الذكية",
+                        color = Color(0xFFFFB300),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                // Clicking the sound icon also says hello
+                IconButton(
+                    onClick = { viewModel.speakGreeting(context) },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFF2E2E34), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = "Hear Welcome",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             if (contacts.isEmpty()) {
                 // Friendly visual empty state helper
                 Column(
@@ -212,29 +275,36 @@ fun MainGrandmaScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
-                        painter = coil.compose.rememberAsyncImagePainter(
-                            model = File(context.filesDir, "img_voice_dialer_banner.jpg")
-                        ),
-                        contentDescription = "Smart voice dialer banner",
+                        painter = painterResource(id = R.drawable.img_grandma_1782382807083),
+                        contentDescription = "Mima the Assistant",
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(24.dp)),
+                            .size(200.dp)
+                            .clip(CircleShape)
+                            .border(4.dp, Color(0xFFFFB300), CircleShape),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Icon(
-                        imageVector = Icons.Default.SettingsSuggest,
-                        contentDescription = null,
-                        tint = Color(0xFF757575),
-                        modifier = Modifier.size(64.dp)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "أهلاً بك! أنا مِيما",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "اضغطي مع الاستمرار على النجمة في الأعلى لإضافة جهات اتصال والبدء.",
+                        color = Color(0xFFFFB300),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Press and hold the star icon at the top right to unlock Settings and register contacts.",
                         color = Color(0xFFB0B0B5),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -740,6 +810,32 @@ fun SettingsScreen(
                         thumbColor = Color(0xFFFFB300)
                     )
                 )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.resetToDefaultSettings() },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFFFB300)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFFFB300)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reset_defaults_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Reset",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Reset to Default Settings",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
 

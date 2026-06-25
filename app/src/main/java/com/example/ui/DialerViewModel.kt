@@ -107,6 +107,11 @@ class DialerViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putInt("sensitivity", intValue).apply()
     }
 
+    fun resetToDefaultSettings() {
+        setSimilarityThreshold(75.0f)
+        setDtwSensitivity(80.0f)
+    }
+
     fun navigateTo(screen: AppScreen) {
         cancelActiveMatchAndTimer()
         _currentScreen.value = screen
@@ -495,6 +500,10 @@ class DialerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- Gemini TTS Utility ---
+
+    fun speakGreeting(context: Context) {
+        speakTTS(context, "مرحباً! أنا مِيما، مساعدتك الصوتية. اضغط على الميكروفون في الأسفل للتحدث والاتصال بعائلتك.")
+    }
 
     private fun speakTTS(context: Context, message: String) {
         viewModelScope.launch {

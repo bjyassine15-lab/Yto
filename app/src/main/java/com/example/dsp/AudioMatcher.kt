@@ -218,17 +218,124 @@ object AudioMatcher {
     }
 
     /**
+     * Trims leading and trailing silence using an energy-based Voice Activity Detection (VAD).
+     */
+    fun trimSilence(samples: FloatArray): FloatArray {
+        if (samples.isEmpty()) return samples
+
+        var peak = 0.0f
+        for (s in samples) {
+            val absVal = abs(s)
+            if (absVal > peak) {
+                peak = absVal
+            }
+        }
+
+        if (peak < 0.01f) return samples
+
+        val frameSize = 160 // 10ms at 16kHz
+        val numFrames = samples.size / frameSize
+        if (numFrames == 0) return samples
+
+        // Use a dynamic threshold based on the peak signal value
+        val threshold = max(0.005f, peak * 0.08f)
+
+        var firstVoiceFrame = -1
+        var lastVoiceFrame = -1
+
+        // Scan forward to find start of voice activity
+        for (f in 0 until numFrames) {
+            var framePeak = 0.0f
+            for (i in 0 until frameSize) {
+                val absVal = abs(samples[f * frameSize + i])
+                if (absVal > framePeak) {
+                    framePeak = absVal
+                }
+            }
+            if (framePeak >= threshold) {
+                firstVoiceFrame = f
+                break
+            }
+        }
+
+        // Scan backward to find end of voice activity
+        for (f in numFrames - 1 downTo 0) {
+            var framePeak = 0.0f
+            for (i in 0 until frameSize) {
+                val absVal = abs(samples[f * frameSize + i])
+                if (absVal > framePeak) {
+                    framePeak = absVal
+                }
+            }
+            if (framePeak >= threshold) {
+                lastVoiceFrame = f
+                break
+            }
+        }
+
+        // If no voice activity detected, return original samples
+        if (firstVoiceFrame == -1 || lastVoiceFrame == -1 || firstVoiceFrame >= lastVoiceFrame) {
+            return samples
+        }
+
+        // Add safety padding of a few frames to prevent consonant clipping
+        val paddedFirstFrame = max(0, firstVoiceFrame - 4)
+        val paddedLastFrame = min(numFrames - 1, lastVoiceFrame + 5)
+
+        val startIndex = paddedFirstFrame * frameSize
+        val endIndex = min(samples.size, (paddedLastFrame + 1) * frameSize)
+        val trimmedSize = endIndex - startIndex
+        if (trimmedSize <= 0) return samples
+
+        val trimmed = FloatArray(trimmedSize)
+        System.arraycopy(samples, startIndex, trimmed, 0, trimmedSize)
+        return trimmed
+    }
+
+    /**
+     * Normalizes the volume level of the audio samples to a target peak level.
+     */
+    fun normalizeVolume(samples: FloatArray): FloatArray {
+        if (samples.isEmpty()) return samples
+        var maxVal = 0.0f
+        for (s in samples) {
+            val absVal = abs(s)
+            if (absVal > maxVal) {
+                maxVal = absVal
+            }
+        }
+        if (maxVal < 1e-5f) return samples
+
+        val targetPeak = 0.9f
+        val factor = targetPeak / maxVal
+        val normalized = FloatArray(samples.size)
+        for (i in samples.indices) {
+            normalized[i] = min(1.0f, max(-1.0f, samples[i] * factor))
+        }
+        return normalized
+    }
+
+    /**
+     * Preprocesses the audio samples by trimming silence and normalizing volume.
+     */
+    fun preprocessAudio(samples: FloatArray): FloatArray {
+        val trimmed = trimSilence(samples)
+        return normalizeVolume(trimmed)
+    }
+
+    /**
      * Extracts MFCC vectors from normalized audio samples.
      * Includes Pre-emphasis, Hamming windowing, FFT, Mel Filterbank, Log, and DCT.
      */
     fun extractMFCCs(samples: FloatArray): List<DoubleArray> {
-        if (samples.size < FRAME_SIZE) return emptyList()
+        val preprocessed = preprocessAudio(samples)
+        if (preprocessed.size < FRAME_SIZE) return emptyList()
 
         // 1. Pre-emphasis: y[n] = x[n] - 0.97 * x[n-1]
-        val preEmphasized = FloatArray(samples.size)
-        preEmphasized[0] = samples[0]
-        for (i in 1 until samples.size) {
-            preEmphasized[i] = samples[i] - 0.97f * samples[i - 1]
+        val preEmphasized = FloatArray(preprocessed.size)
+        preEmphasized[0] = preprocessed[0]
+        for (i in 1 until preprocessed.size) {
+            preEmphasized[i] = preprocessed[i] - 0.97f * preprocessed[i - 1]
         }
 
         // 2. Hamming Window coefficients
@@ -506,23 +613,33 @@ object AudioMatcher {
 
     /**
      * Converts a raw DTW distance to a similarity percentage (0% to 100%).
-     * Baseline comparison of normalized speech shows typical matches are <= 1.5,
-     * different utterances are >= 3.0.
+     * Uses a piecewise-linear calibration curve:
+     * - Distances below 0.6 indicate a virtually identical match: 95% - 100%
+     * - Distances 0.6 to 1.2 cover slight speed/pitch variations: 85% - 95%
+     * - Distances 1.2 to 1.8 represent borderline speech similarities: 50% - 85%
+     * - Distances 1.8 to 3.0 are completely different phonetic utterances: 10% - 50%
+     * - Distances above 3.0 are background noise or completely distinct: 0% - 10%
      */
     fun dtwToSimilarity(distance: Double): Double {
         if (distance == Double.MAX_VALUE) return 0.0
-        // Calibration values:
-        // Distances below 1.2 are extremely strong matches (near 100%).
-        // Distances around 2.4 are highly questionable (near 50%).
-        // Distances >= 3.6 are completely different noise (0%).
-        val minExpectedDist = 0.5
-        val maxExpectedDist = 3.6
-
-        if (distance <= minExpectedDist) return 100.0
-        if (distance >= maxExpectedDist) return 0.0
-
-        // Linear interpolation
-        val fraction = (distance - minExpectedDist) / (maxExpectedDist - minExpectedDist)
-        return (1.0 - fraction) * 100.0
+        
+        return when {
+            distance <= 0.6 -> {
+                100.0 - (distance / 0.6) * 5.0
+            }
+            distance <= 1.2 -> {
+                95.0 - ((distance - 0.6) / 0.6) * 10.0
+            }
+            distance <= 1.8 -> {
+                85.0 - ((distance - 1.2) / 0.6) * 35.0
+            }
+            distance <= 3.0 -> {
+                50.0 - ((distance - 1.8) / 1.2) * 40.0
+            }
+            else -> {
+                val score = 10.0 - ((distance - 3.0) / 1.5) * 10.0
+                max(0.0, score)
+            }
+        }
     }
 }

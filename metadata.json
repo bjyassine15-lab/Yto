@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Smart Dialer",
-  "description": "A smart visual and offline audio matching voice dialer designed for the illiterate elderly.",
+  "name": "mima",
+  "description": "A warm visual and voice dialer assistant in the form of a sweet grandmother named Mima, designed for the illiterate elderly.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
