@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Smart Dialer",
+  "description": "A smart visual and offline audio matching voice dialer designed for the illiterate elderly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
